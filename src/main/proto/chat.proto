@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package chat;
+
+option java_package = "com.demo.chatserver.proto";
+option java_multiple_files = true;
+
+message ChatMessage {
+  string id = 1;
+  string roomId = 2;
+  string senderId = 3;
+  string senderName = 4;
+  string content = 5;
+  int64 timestamp = 6;
+  MessageType type = 7;
+
+  enum MessageType {
+    TEXT = 0;
+    IMAGE = 1;
+    SYSTEM = 2;
+  }
+}
+
+message RoomInfo {
+  string id = 1;
+  string name = 2;
+  int32 userCount = 3;
+}
+
+message JoinRoomRequest {
+  string userId = 1;
+  string userName = 2;
+  string roomId = 3;
+}
+
+message JoinRoomResponse {
+  bool success = 1;
+  string roomId = 2;
+  repeated ChatMessage recentMessages = 3;
+}

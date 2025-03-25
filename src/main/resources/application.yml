@@ -1,0 +1,9 @@
+server:
+  port: 8080
+
+socketio:
+  port: 9092
+  host: 0.0.0.0
+  cors-origin: "*"
+  ping-interval: 25000  # 25초
+  ping-timeout: 60000   # 60초
