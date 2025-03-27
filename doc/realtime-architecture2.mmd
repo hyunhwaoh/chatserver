@@ -35,6 +35,11 @@ graph TD
         RabbitMQ --> StorageQueue[Storage Queue\n채팅 메시지 저장]
     end
 
+%% 클라이언트 채팅 이력 요청
+    Client1 -.->|채팅 이력 요청| API1
+    Client3 -.->|채팅 이력 요청| API2
+    Client5 -.->|채팅 이력 요청| APIm
+
 %% 메시지 브로드캐스트
     FanoutExchange --> |구독| Socket1
     FanoutExchange --> |구독| Socket2
@@ -44,6 +49,7 @@ graph TD
     StorageQueue --> |소비| API1
     StorageQueue --> |소비| API2
     StorageQueue --> |소비| APIm
+
 
 %% API 서버
     subgraph "API 서버 클러스터"
@@ -57,10 +63,6 @@ graph TD
     API2 -->|상태 조회| Redis
     APIm -->|상태 조회| Redis
 
-%% 클라이언트 채팅 이력 요청
-    Client1 -.->|채팅 이력 요청| API1
-    Client3 -.->|채팅 이력 요청| API2
-    Client5 -.->|채팅 이력 요청| APIm
 
 %% 데이터베이스
     API1 --> DB[(채팅 데이터베이스)]
@@ -70,9 +72,9 @@ graph TD
 %% 데이터 흐름 표시
     subgraph "데이터 흐름"
         flow1[1. 클라이언트 연결 및 룸 조인]
-        flow2[2. 메시지 전송 및 브로드캐스트]
-        flow3[3. 메시지 저장]
-        flow4[4. 채팅 이력 로드]
+        flow2[2. DB에서 채팅 이력 로드]
+        flow3[3. 메시지 전송 및 브로드캐스트]
+        flow4[4. 메시지 저장]
         flow5[5. 빈 룸 정리]
     end
 
