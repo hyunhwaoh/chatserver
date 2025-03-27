@@ -1,0 +1,98 @@
+graph TD
+%% 클라이언트
+    Client1[클라이언트 1] --> Socket1
+    Client2[클라이언트 2] --> Socket1
+    Client3[클라이언트 3] --> Socket2
+    Client4[클라이언트 4] --> Socket2
+    Client5[클라이언트 5] --> SocketN
+
+%% 소켓 서버
+    subgraph "Socket.IO 서버 클러스터"
+        Socket1[Socket.IO 서버 1]
+        Socket2[Socket.IO 서버 2]
+        SocketN[Socket.IO 서버 N]
+    end
+
+%% Redis 상태 관리
+    subgraph "상태 및 세션 관리"
+        Redis[(Redis 캐시)]
+        Redis -->|룸 정보 제공| Socket1
+        Redis -->|룸 정보 제공| Socket2
+        Redis -->|룸 정보 제공| SocketN
+        Socket1 -->|룸/사용자 상태 저장| Redis
+        Socket2 -->|룸/사용자 상태 저장| Redis
+        SocketN -->|룸/사용자 상태 저장| Redis
+    end
+
+%% RabbitMQ 브로커
+    Socket1 --> |메시지 발행| RabbitMQ
+    Socket2 --> |메시지 발행| RabbitMQ
+    SocketN --> |메시지 발행| RabbitMQ
+
+    subgraph "메시지 브로커"
+        RabbitMQ[RabbitMQ]
+        RabbitMQ --> FanoutExchange[Fanout Exchange\n채팅 메시지 브로드캐스트]
+        RabbitMQ --> StorageQueue[Storage Queue\n채팅 메시지 저장]
+    end
+
+%% 메시지 브로드캐스트
+    FanoutExchange --> |구독| Socket1
+    FanoutExchange --> |구독| Socket2
+    FanoutExchange --> |구독| SocketN
+
+%% 메시지 저장
+    StorageQueue --> |소비| API1
+    StorageQueue --> |소비| API2
+    StorageQueue --> |소비| APIm
+
+%% API 서버
+    subgraph "API 서버 클러스터"
+        API1[API 서버 1]
+        API2[API 서버 2]
+        APIm[API 서버 M]
+    end
+
+%% API 서버와 Redis
+    API1 -->|상태 조회| Redis
+    API2 -->|상태 조회| Redis
+    APIm -->|상태 조회| Redis
+
+%% 클라이언트 채팅 이력 요청
+    Client1 -.->|채팅 이력 요청| API1
+    Client3 -.->|채팅 이력 요청| API2
+    Client5 -.->|채팅 이력 요청| APIm
+
+%% 데이터베이스
+    API1 --> DB[(채팅 데이터베이스)]
+    API2 --> DB
+    APIm --> DB
+
+%% 데이터 흐름 표시
+    subgraph "데이터 흐름"
+        flow1[1. 클라이언트 연결 및 룸 조인]
+        flow2[2. 메시지 전송 및 브로드캐스트]
+        flow3[3. 메시지 저장]
+        flow4[4. 채팅 이력 로드]
+        flow5[5. 빈 룸 정리]
+    end
+
+    flow1 --- flow2
+    flow2 --- flow3
+    flow3 --- flow4
+    flow4 --- flow5
+
+    classDef client fill:#D5E8D4,stroke:#82B366;
+    classDef socketio fill:#DAE8FC,stroke:#6C8EBF;
+    classDef rabbitmq fill:#FFE6CC,stroke:#D79B00;
+    classDef api fill:#FFF2CC,stroke:#D6B656;
+    classDef database fill:#F8CECC,stroke:#B85450;
+    classDef redis fill:#E1D5E7,stroke:#9673A6;
+    classDef flow fill:#F5F5F5,stroke:#666666,stroke-dasharray: 5 5;
+
+    class Client1,Client2,Client3,Client4,Client5 client;
+    class Socket1,Socket2,SocketN socketio;
+    class RabbitMQ,FanoutExchange,StorageQueue rabbitmq;
+    class API1,API2,APIm api;
+    class DB database;
+    class Redis redis;
+    class flow1,flow2,flow3,flow4,flow5 flow;
