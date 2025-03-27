@@ -69,20 +69,6 @@ graph TD
     API2 --> DB
     APIm --> DB
 
-%% 데이터 흐름 표시
-    subgraph "데이터 흐름"
-        flow1[1. 클라이언트 연결 및 룸 조인]
-        flow2[2. DB에서 채팅 이력 로드]
-        flow3[3. 메시지 전송 및 브로드캐스트]
-        flow4[4. 메시지 저장]
-        flow5[5. 빈 룸 정리]
-    end
-
-    flow1 --- flow2
-    flow2 --- flow3
-    flow3 --- flow4
-    flow4 --- flow5
-
     classDef client fill:#D5E8D4,stroke:#82B366;
     classDef socketio fill:#DAE8FC,stroke:#6C8EBF;
     classDef rabbitmq fill:#FFE6CC,stroke:#D79B00;
