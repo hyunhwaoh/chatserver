@@ -130,11 +130,11 @@ public class ChatEventHandler {
             }
 
             // 응답 전송
-            JoinRoomResponse response = responseBuilder.build();
+            /*JoinRoomResponse response = responseBuilder.build();
             byte[] responseBytes = response.toByteArray();
             String responseBase64 = Base64.getEncoder().encodeToString(responseBytes);
 
-            client.sendEvent("chat:joinRoom", responseBase64);
+            client.sendEvent("chat:joinRoom", responseBase64);*/
         } catch (Exception e) {
             log.error("Error handling join room: {}", e.getMessage(), e);
             if (ackRequest.isAckRequested()) {
@@ -184,8 +184,8 @@ public class ChatEventHandler {
         String messageBase64 = Base64.getEncoder().encodeToString(messageBytes);
 
         // 룸에 있는 모든 클라이언트에게 메시지 전송
-        server.getRoomOperations(roomId).sendEvent("chat:message", messageBase64);
         log.info("Broadcast message to {} in room {}", messageBase64, roomId);
+        server.getRoomOperations(roomId).sendEvent("chat:message", messageBase64);
     }
 
     // 바이너리 메시지
@@ -194,8 +194,9 @@ public class ChatEventHandler {
         byte[] messageBytes = message.toByteArray();
 
         // 룸에 있는 모든 클라이언트에게 바이너리 메시지 전송
-        server.getRoomOperations(roomId).sendEvent("chat:message", messageBytes);
         log.info("Broadcast binary message to room {}, size: {} bytes", roomId, messageBytes.length);
+        server.getRoomOperations(roomId).getClients()
+                .forEach(c-> c.sendEvent("chat:message", messageBytes));
     }
 
     private String getUserIdFromClient(SocketIOClient client) {

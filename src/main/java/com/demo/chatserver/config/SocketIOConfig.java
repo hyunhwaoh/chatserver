@@ -1,7 +1,10 @@
 package com.demo.chatserver.config;
 
 import com.corundumstudio.socketio.Configuration;
+import com.corundumstudio.socketio.SocketConfig;
 import com.corundumstudio.socketio.SocketIOServer;
+import com.corundumstudio.socketio.Transport;
+import com.corundumstudio.socketio.protocol.JacksonJsonSupport;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,22 @@ public class SocketIOConfig {
         config.setPingInterval(pingInterval);
         config.setPingTimeout(pingTimeout);
         config.setOrigin(corsOrigin);
+
+        config.setAllowCustomRequests(true);
+        config.setUpgradeTimeout(10000);
+        config.setPingTimeout(60000);
+        config.setPingInterval(25000);
+        config.setTransports(Transport.WEBSOCKET, Transport.POLLING);
+        config.setJsonSupport(new JacksonJsonSupport());
+        config.setMaxFramePayloadLength(1024 * 1024 * 10); // 10MB
+        config.setMaxHttpContentLength(1024 * 1024 * 10);  // 10MB
+
+        // Socket 설정
+        SocketConfig socketConfig = new SocketConfig();
+        socketConfig.setReuseAddress(true);
+        socketConfig.setTcpNoDelay(true);
+        socketConfig.setSoLinger(0);
+        config.setSocketConfig(socketConfig);
 
         // 서버 인스턴스 생성
         server = new SocketIOServer(config);

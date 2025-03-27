@@ -36,7 +36,7 @@ WebSocket은 실시간 양방향 통신에 적합하지만, 대규모 서비스�
 
 ## 📌 3. 실제 서비스에서는 WebSocket을 어떻게 사용할까?
 
-### ✅ Kacao Entertainment (WebSocket + Kafka + Redis)
+### ✅ Kakao Entertainment (WebSocket + Kafka + Redis)
 - WebSocket: 클라이언트와 서버 간의 통신
 - Kafka: 메시지 브로커. 채팅 서버간 메시지 전달 및 제어 Command, Event 메시지 처리.
 - Redis: 실시간 데이터 저장
@@ -50,21 +50,29 @@ https://kakaoentertainment-tech.tistory.com/110
 
 https://engineering.linecorp.com/ko/blog/the-architecture-behind-chatting-on-line-live
 
-### ✅ Slack (WebSocket + Redis + Kafka + MySQL)
-- WebSocket: 클라이언트와 서버 간 실시간 연결.
-- Redis Pub/Sub: 여러 서버 간 실시간 메시지 전파.
-- Kafka: 메시지를 영구 저장해서 서버 장애 시에도 복구 가능.
-- MySQL: 채팅 메시지를 저장해 검색 및 재전송 지원.
-
-### ✅ WhatsApp (WebSocket + RabbitMQ + Cassandra)
+### ✅ Daum 실시간 댓글 (WebSocket + Redis + Kafka)
 - WebSocket: 실시간 채팅 전송.
-- RabbitMQ: 메시지를 영구 저장하고, 안정적으로 전송.
-- Cassandra: 분산 DB로 메시지 저장, 빠른 읽기/쓰기 성능.
+- Kafka: 메시지 브로커. 메시지를 임시적으로 저장하고, 메시지 전파.
+- Redis:  메시지 저장, 빠른 읽기/쓰기 성능.
+  https://tech.kakao.com/posts/390
+
+![daum-arch-img1.png](doc/daum-arch-img1.png)
+![daum-arch-img2.png](doc/daum-arch-img2.png)
+
+### ✅ 배민 쇼핑라이브 채팅 (WebSocket + Redis pub/sub)
+- WebSocket: 실시간 채팅 전송. Webflux 로 트래픽을 non-bloking 처리.
+- Redis pub/sub: 메시지 브로커
+- Redis 에 휘발되는 정보 저장, 방송이 끝나면 RDB에 저장.
+
+https://techblog.woowahan.com/5268/
 
 ### ✅ Discord (WebSocket + Redis + ScyllaDB)
 - WebSocket: 사용자가 음성/텍스트 채팅방에 접속하면 서버와 연결.
-- Redis: 실시간 메시지 전파.
-- ScyllaDB: 대량의 채팅 메시지를 저장하고 빠르게 불러오기.
+- Message Queue: 실시간 메시지 전파.
+- MongoDB -> Cassandra -> ScyllaDB: 대량의 채팅 메시지를 단계별로 저장.
+
+https://www.almabetter.com/bytes/articles/build-a-distributed-messaging-system-like-discord
+![discord-arch-img.png](doc/discord-arch-img.png)
 
 ## 4. 🚀 이슈 사항
 
@@ -170,25 +178,31 @@ Redis 에서 룸 관리.
 - 확장 제한: 서버 간 상태 공유와 동기화 어려움
 - 신뢰성 낮음: 메시지 지속성과 재전송 메커니즘 직접 구현 필요
 
-### ➡ 3안: Socket.IO + RabbitMQ 또는 Redis pub/sub 하이브리드 아키텍처
+### ➡ 3안: Socket.IO + RabbitMQ + Redis cache
 
-작동 방식
+➡ WebSocket을 사용하지만, 대규모 트래픽을 감당하기 위해 메시지 브로커와 결합하는 구조가 일반적임.
+동적 구독 패턴 적용, 로컬 라우팅을 사용하여 웹소켓을 최적화를 하여 부하를 줄이고 성능을 향상시킬수 있다.
+
+➡ 현재 RabbitMQ 에 STOMP 플러그인하여 사용중이라 웹소켓 서버를 수평 확장하기 어려움.
+지금 가지고 있는 RabbitMQ, Redis 를 활용하면서 Socket.IO 서버만 확장가능하게 하면 좀더 수월하게 구현이 가능할 듯함.
+
+#### 작동 방식
 
 - 클라이언트 연결: 사용자는 로드 밸런서를 통해 Socket.IO 서버 중 하나에 연결
 - 서버 간 통신: Socket.IO 서버들은 RabbitMQ를 통해 서로 메시지 교환
 - 메시지 전달: 한 서버에 연결된 클라이언트의 메시지가 다른 서버의 클라이언트에게 전달 가능
+- 메시지 저장: 디비 저장을 위한 메시지 큐를 하나 만들어 API 에서 구독하여 디비 저장.
+
+1. 클라이언트가 Socket.IO netty 서버에 연결. 강의별 개설된 룸에 조인. 이때 목록은 Redis 에 저장하여 관리.
+2. 클라이언트가 메시지를 전달하면 RabbitMQ 에서 Fanout 하여 모든 서버에 메시지를 브로드캐스트 하는 동시에 Storage Queue 를 쌓음.
+3. API 서버들이 Storage Queue 를 구독하고 있다가 메시지를 가져와 RDB 에 채팅 메시지를 저장. 큐는 경쟁 소비자 패턴으로 작동하며 서버중 하나만 메시지를 처리.
+4. 새로 들어온 클라이언트는 api 로 이전 채팅 메시지를 가져오며 동시에 소켓서버에서 강의 룸에 입장하여 최신 메시지를 이어 받게 됨.
+5. 강의를 듣는 사용자가 없으면 룸은 종료되고 Redis room 정보도 삭제.
 
 장점
 
-- 메시지 브로커 
 - 확장성 향상: Socket.IO 서버를 독립적으로 수평 확장 가능
 - 낮은 레이턴시: 동일 서버에 연결된 클라이언트 간 직접 통신
-- 신뢰성 있는 메시지 전달: 서버 간 통신에 RabbitMQ의 신뢰성 활용
+- 신뢰성 있는 메시지 전달: 서버 간 통신에 RabbitMQ의 신뢰성 활용. Redis pub/sub 보다 메시지 보장한다고 함.
 - 부하 분산: 로드 밸런서와 Socket.IO 클러스터로 부하 분산
 - 장애 대응: 한 서버가 실패해도 다른 서버로 연결 재조정 가능
-
-➡ WebSocket을 사용하지만, 대규모 트래픽을 감당하기 위해 메시지 브로커와 결합하는 구조가 일반적! 
-동적 구독 패턴 적용, 로컬 라우팅을 사용하여 웹소켓을 최적화를 하여 부하를 줄이고 성능을 향상시킬수 있다.
-
-➡ 현재 RabbitMQ 에 STOMP 플러그인하여 사용중이라 웹소켓 서버를 수평 확장하기 어려움.
-따라서 지금 가지고 있는 RabbitMQ 또는 Redis pub/sub 활용하여 자체 socket.io 서버를 만드는 것도 고려할 수 있음.

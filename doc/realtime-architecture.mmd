@@ -1,0 +1,59 @@
+graph TD
+%% 클라이언트
+    Client1[클라이언트 1] --> Socket1
+    Client2[클라이언트 2] --> Socket1
+    Client3[클라이언트 3] --> Socket2
+    Client4[클라이언트 4] --> Socket2
+    Client5[클라이언트 5] --> SocketN
+
+%% 소켓 서버
+    subgraph "Socket.IO 서버 클러스터"
+        Socket1[Socket.IO 서버 1]
+        Socket2[Socket.IO 서버 2]
+        SocketN[Socket.IO 서버 N]
+    end
+
+%% RabbitMQ 브로커
+    Socket1 --> |메시지 발행| RabbitMQ
+    Socket2 --> |메시지 발행| RabbitMQ
+    SocketN --> |메시지 발행| RabbitMQ
+
+    subgraph "메시지 브로커"
+        RabbitMQ[RabbitMQ]
+        RabbitMQ --> FanoutExchange[Fanout Exchange\n채팅 메시지 브로드캐스트]
+        RabbitMQ --> StorageQueue[Storage Queue\n채팅 메시지 저장]
+    end
+
+%% 메시지 브로드캐스트
+    FanoutExchange --> |구독| Socket1
+    FanoutExchange --> |구독| Socket2
+    FanoutExchange --> |구독| SocketN
+
+%% 메시지 저장
+    StorageQueue --> |소비| API1
+    StorageQueue --> |소비| API2
+    StorageQueue --> |소비| API3
+
+%% API 서버
+    subgraph "API 서버 클러스터"
+        API1[API 서버 1]
+        API2[API 서버 2]
+        API3[API 서버 3]
+    end
+
+%% 데이터베이스
+    API1 --> DB[(채팅 데이터베이스)]
+    API2 --> DB
+    API3 --> DB
+
+    classDef client fill:#D5E8D4,stroke:#82B366;
+    classDef socketio fill:#DAE8FC,stroke:#6C8EBF;
+    classDef rabbitmq fill:#FFE6CC,stroke:#D79B00;
+    classDef api fill:#FFF2CC,stroke:#D6B656;
+    classDef database fill:#F8CECC,stroke:#B85450;
+
+    class Client1,Client2,Client3,Client4,Client5 client;
+    class Socket1,Socket2,SocketN socketio;
+    class RabbitMQ,FanoutExchange,StorageQueue rabbitmq;
+    class API1,API2,API3 api;
+    class DB database;
