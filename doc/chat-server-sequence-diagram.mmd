@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant User as 사용자
+    participant SocketServer as Socket Server
+    participant Redis as Redis
+    participant RabbitMQ as RabbitMQ
+    participant APIServer as API Server
+    participant BatchServer as Batch Server
+    participant MySQL as MySQL DB
+
+    User ->> SocketServer: WebSocket 연결
+    SocketServer ->> Redis: 사용자 접속 정보 저장
+    User ->> APIServer: 지난 채팅 데이터 요청
+    APIServer ->> MySQL: 저장된 채팅 데이터 조회
+    MySQL ->> APIServer: 채팅 데이터 반환
+    APIServer ->> User: 채팅 데이터 전송
+    User ->> SocketServer: 채팅 메시지 전송
+    SocketServer ->> RabbitMQ: 메시지 Publish
+    RabbitMQ ->> SocketServer: 메시지 Consume (다른 서버에 전달)
+    RabbitMQ ->> RabbitMQ: 메시지 전파 큐에 저장
+    RabbitMQ ->> RabbitMQ: 메시지 저장 큐에 저장
+    RabbitMQ ->> APIServer: 메시지 전달
+    APIServer ->> BatchServer: 저장 큐 구독
+    BatchServer ->> MySQL: 채팅 데이터 저장
+
